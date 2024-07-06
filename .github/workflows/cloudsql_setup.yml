@@ -1,0 +1,47 @@
+name: Setup Cloud SQL
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  setup-cloudsql:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to Google Container Registry
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      run: echo $GCP_SA_KEY | docker login -u _json_key --password-stdin https://gcr.io
+
+    - name: Build Docker image
+      run: docker build -t gcr.io/${{ secrets.GCP_PROJECT }}/cloudsql-setup:latest .
+
+    - name: Run Docker container
+      env:
+        GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+        INSTANCE_NAME: "my-sql-instance"
+        DATABASE_NAME: "my-database"
+        USER_NAME: "my-user"
+        USER_PASSWORD: "my-password"
+        REGION: "us-central1"
+        DATABASE_VERSION: "MYSQL_8_0"
+        TIER: "db-f1-micro"
+      run: |
+        docker run \
+          -e GCP_PROJECT=$GCP_PROJECT \
+          -e INSTANCE_NAME=$INSTANCE_NAME \
+          -e DATABASE_NAME=$DATABASE_NAME \
+          -e USER_NAME=$USER_NAME \
+          -e USER_PASSWORD=$USER_PASSWORD \
+          -e REGION=$REGION \
+          -e DATABASE_VERSION=$DATABASE_VERSION \
+          -e TIER=$TIER \
+          gcr.io/${{ secrets.GCP_PROJECT }}/cloudsql-setup:latest
